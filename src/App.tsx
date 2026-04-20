@@ -6,27 +6,28 @@ import { LoginScreen } from './components/LoginScreen';
 import { RegisterScreen } from './components/RegisterScreen';
 import { OnboardingScreen } from './components/OnboardingScreen';
 import { HabitSelectionScreen } from './components/HabitSelectionScreen';
-import { LayoutDashboard, Calendar, Search, User, Plus } from 'lucide-react';
+import { LayoutDashboard, Calendar, Trophy, User, Plus } from 'lucide-react';
 import type { Habit } from './types';
 import { AddHabitModal } from './components/AddHabitModal';
 import { ProfileMenu } from './components/ProfileMenu';
+import { LeaderboardScreen } from './components/LeaderboardScreen';
 
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [authView, setAuthView] = useState<'login' | 'register'>('login');
   const [step, setStep] = useState<'intro' | 'habits' | 'dashboard'>('intro');
   const [userHabits, setUserHabits] = useState<Habit[]>([]);
-  const [activeTab, setActiveTab] = useState<'monthly' | 'yearly'>('monthly');
+  const [activeTab, setActiveTab] = useState<'monthly' | 'yearly' | 'leaderboard'>('monthly');
   const [showAddModal, setShowAddModal] = useState(false);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
+  const [userName, setUserName] = useState('Kullanıcı');
 
-  const handleLogin = () => {
-    console.log('Login triggered');
+  const handleLogin = (_uid: string, name: string) => {
+    setUserName(name);
     setIsAuthenticated(true);
   };
 
   const handleHabitSelection = (selected: Habit[]) => {
-    console.log('Habits selected:', selected);
     setUserHabits(selected);
     setStep('dashboard');
   };
@@ -83,11 +84,9 @@ function App() {
         </header>
 
         <main style={{ paddingBottom: '100px' }}>
-          {activeTab === 'monthly' ? (
-            <MonthlyDashboard initialHabits={userHabits} />
-          ) : (
-            <YearlyDashboard habits={userHabits} />
-          )}
+          {activeTab === 'monthly' && <MonthlyDashboard initialHabits={userHabits} />}
+          {activeTab === 'yearly' && <YearlyDashboard habits={userHabits} />}
+          {activeTab === 'leaderboard' && <LeaderboardScreen habits={userHabits} userName={userName} />}
         </main>
       </div>
 
@@ -118,9 +117,12 @@ function App() {
           <LayoutDashboard size={24} />
           <span>Dashboard</span>
         </button>
-        <button className="nav-item">
-          <Search size={24} />
-          <span>Keşfet</span>
+        <button
+          className={`nav-item ${activeTab === 'leaderboard' ? 'active' : ''}`}
+          onClick={() => setActiveTab('leaderboard')}
+        >
+          <Trophy size={24} />
+          <span>Sıralama</span>
         </button>
         <button
           className={`nav-item ${activeTab === 'yearly' ? 'active' : ''}`}

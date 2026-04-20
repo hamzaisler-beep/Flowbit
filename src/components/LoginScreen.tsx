@@ -1,14 +1,32 @@
 import { useState } from 'react';
 import { Mail, Lock, ArrowRight, LogIn } from 'lucide-react';
+import { signInWithEmailAndPassword } from 'firebase/auth';
+import { auth } from '../lib/firebase';
 
 interface LoginScreenProps {
-  onLogin: () => void;
+  onLogin: (uid: string, name: string) => void;
   onNavigateToRegister: () => void;
 }
 
 export const LoginScreen = ({ onLogin, onNavigateToRegister }: LoginScreenProps) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const handleLogin = async () => {
+    if (!email || !password) return;
+    setError('');
+    setLoading(true);
+    try {
+      const cred = await signInWithEmailAndPassword(auth, email, password);
+      onLogin(cred.user.uid, cred.user.displayName || cred.user.email || 'Kullanıcı');
+    } catch {
+      setError('E-posta veya şifre hatalı.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <div className="auth-container animate-fade-in">
@@ -25,12 +43,11 @@ export const LoginScreen = ({ onLogin, onNavigateToRegister }: LoginScreenProps)
           <label>E-posta</label>
           <div className="input-wrapper">
             <Mail size={20} className="input-icon" />
-            <input 
-              type="email" 
-              placeholder="name@example.com" 
+            <input
+              type="email"
+              placeholder="name@example.com"
               value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
+              onChange={e => setEmail(e.target.value)}
             />
           </div>
         </div>
@@ -41,12 +58,12 @@ export const LoginScreen = ({ onLogin, onNavigateToRegister }: LoginScreenProps)
           </div>
           <div className="input-wrapper">
             <Lock size={20} className="input-icon" />
-            <input 
-              type="password" 
-              placeholder="••••••••" 
+            <input
+              type="password"
+              placeholder="••••••••"
               value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
+              onChange={e => setPassword(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && handleLogin()}
             />
           </div>
           <div style={{ textAlign: 'right', marginTop: '4px' }}>
@@ -54,16 +71,16 @@ export const LoginScreen = ({ onLogin, onNavigateToRegister }: LoginScreenProps)
           </div>
         </div>
 
-        <button type="button" className="primary-button full-width" onClick={() => { console.log('Direct login click'); onLogin(); }}>
-          Giriş Yap <ArrowRight size={20} />
+        {error && <p style={{ color: 'var(--accent-red)', fontSize: '0.85rem', textAlign: 'center' }}>{error}</p>}
+
+        <button type="button" className="primary-button full-width" onClick={handleLogin} disabled={loading}>
+          {loading ? 'Giriş yapılıyor...' : <> Giriş Yap <ArrowRight size={20} /> </>}
         </button>
       </div>
 
-      <div className="auth-divider">
-        <span>veya</span>
-      </div>
+      <div className="auth-divider"><span>veya</span></div>
 
-      <button className="secondary-button full-width" onClick={() => { console.log('Guest login clicked'); onLogin(); }}>
+      <button className="secondary-button full-width" onClick={() => onLogin('guest', 'Misafir')}>
         <LogIn size={20} /> Misafir Olarak Devam Et
       </button>
 
