@@ -1,12 +1,16 @@
-import { X } from 'lucide-react';
+import { X, Trash2, Pencil } from 'lucide-react';
+import { useState } from 'react';
 import type { Habit } from '../types';
 
 interface Props {
   habit: Habit;
   onClose: () => void;
+  onEdit?: () => void;
+  onDelete?: () => void;
 }
 
-export const HabitDetailModal = ({ habit, onClose }: Props) => {
+export const HabitDetailModal = ({ habit, onClose, onEdit, onDelete }: Props) => {
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const now = new Date();
   const today = now.getDate();
   const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
@@ -42,12 +46,22 @@ export const HabitDetailModal = ({ habit, onClose }: Props) => {
             <div style={{ width: 14, height: 14, borderRadius: 4, background: habit.color, flexShrink: 0 }} />
             <h3 style={{ fontSize: '1.2rem', fontWeight: 800 }}>{habit.name}</h3>
           </div>
-          <button
-            onClick={onClose}
-            style={{ background: 'var(--surface-alt)', border: '1px solid var(--border)', borderRadius: 10, padding: 8, color: 'var(--text-muted)', cursor: 'pointer' }}
-          >
-            <X size={18} />
-          </button>
+          <div style={{ display: 'flex', gap: 8 }}>
+            {onEdit && (
+              <button
+                onClick={onEdit}
+                style={{ background: 'var(--surface-alt)', border: '1px solid var(--border)', borderRadius: 10, padding: 8, color: 'var(--accent-blue)', cursor: 'pointer' }}
+              >
+                <Pencil size={18} />
+              </button>
+            )}
+            <button
+              onClick={onClose}
+              style={{ background: 'var(--surface-alt)', border: '1px solid var(--border)', borderRadius: 10, padding: 8, color: 'var(--text-muted)', cursor: 'pointer' }}
+            >
+              <X size={18} />
+            </button>
+          </div>
         </div>
 
         {/* Stats */}
@@ -92,6 +106,47 @@ export const HabitDetailModal = ({ habit, onClose }: Props) => {
             );
           })}
         </div>
+
+        {onDelete && (
+          <div style={{ marginTop: 28 }}>
+            {!confirmDelete ? (
+              <button
+                onClick={() => setConfirmDelete(true)}
+                style={{
+                  width: '100%', padding: '13px', borderRadius: 12,
+                  background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.3)',
+                  color: '#ef4444', fontWeight: 600, fontSize: '0.9rem',
+                  cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                }}
+              >
+                <Trash2 size={16} /> Alışkanlığı Sil
+              </button>
+            ) : (
+              <div style={{ display: 'flex', gap: 10 }}>
+                <button
+                  onClick={() => setConfirmDelete(false)}
+                  style={{
+                    flex: 1, padding: '13px', borderRadius: 12,
+                    background: 'var(--surface-alt)', border: '1px solid var(--border)',
+                    color: 'var(--text-muted)', fontWeight: 600, fontSize: '0.9rem', cursor: 'pointer',
+                  }}
+                >
+                  İptal
+                </button>
+                <button
+                  onClick={onDelete}
+                  style={{
+                    flex: 1, padding: '13px', borderRadius: 12,
+                    background: '#ef4444', border: 'none',
+                    color: 'white', fontWeight: 700, fontSize: '0.9rem', cursor: 'pointer',
+                  }}
+                >
+                  Evet, Sil
+                </button>
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );

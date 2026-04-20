@@ -2,21 +2,43 @@ import type { Habit, HabitCategory } from '../types';
 import { CATEGORY_LABELS } from '../types';
 import { CircularProgress } from './CircularProgress';
 import { HabitDetailModal } from './HabitDetailModal';
+import { EditHabitModal } from './EditHabitModal';
 import { LineChart, Line, XAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { Check, Flame, ChevronRight, Info } from 'lucide-react';
+import { Check, Flame, ChevronRight, Info, GripVertical } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
+
+const QUOTES = [
+  'Küçük adımlar, büyük yolculuklar yaratır.',
+  'Disiplin, motivasyonun tükendiği yerde devreye girer.',
+  'Bugün yaptıkların, yarınki sen için en iyi yatırım.',
+  'Mükemmel olmak gerekmez, sadece başlamak yeter.',
+  'Her gün biraz daha iyi olmak, zamanla büyük fark yaratır.',
+  'Alışkanlıklar, karakterin yapı taşlarıdır.',
+  'Kendine verdiğin sözleri tut — o insan en önemlisi.',
+  'Zorluk geçici, gurur kalıcıdır.',
+  'İlerleme, mükemmellikten daha değerlidir.',
+  'Her sabah yeni bir şans, yeni bir seçim.',
+  'Alışkanlıklarını seç; onlar seni inşa eder.',
+  'Küçük tutarlılık, aralıklı mükemmellikten iyidir.',
+  'Sağlıklı bir zihin için düzenli bir beden şarttır.',
+  'Bugün ekilenler, yarın biçilir.',
+];
 
 interface MonthlyDashboardProps {
   initialHabits: Habit[];
   onHabitsChange?: (habits: Habit[]) => void;
+  onDeleteHabit?: (id: string) => void;
+  onEditHabit?: (updated: Habit) => void;
 }
 
-export const MonthlyDashboard = ({ initialHabits, onHabitsChange }: MonthlyDashboardProps) => {
+export const MonthlyDashboard = ({ initialHabits, onHabitsChange, onDeleteHabit, onEditHabit }: MonthlyDashboardProps) => {
   const [habits, setHabits] = useState<Habit[]>(initialHabits);
   const [showHistory, setShowHistory] = useState(false);
   const [activeCategory, setActiveCategory] = useState<HabitCategory | 'tümü'>('tümü');
   const [selectedHabit, setSelectedHabit] = useState<Habit | null>(null);
+  const [editingHabit, setEditingHabit] = useState<Habit | null>(null);
   const [showCelebration, setShowCelebration] = useState(false);
+  const [dragIndex, setDragIndex] = useState<number | null>(null);
   const celebrationShownRef = useRef(false);
 
   useEffect(() => {
@@ -45,7 +67,9 @@ export const MonthlyDashboard = ({ initialHabits, onHabitsChange }: MonthlyDashb
 
   const continuity = totalHabits > 0 ? Math.min(100, Math.round(habits.reduce((acc, h) => acc + h.streak, 0) / totalHabits * 10)) : 0;
 
-  // Celebration when all habits done
+  const dayOfYear = Math.floor((now.getTime() - new Date(now.getFullYear(), 0, 0).getTime()) / 86400000);
+  const todayQuote = QUOTES[dayOfYear % QUOTES.length];
+
   useEffect(() => {
     if (totalHabits > 0 && completedToday === totalHabits && !celebrationShownRef.current) {
       celebrationShownRef.current = true;
@@ -87,7 +111,24 @@ export const MonthlyDashboard = ({ initialHabits, onHabitsChange }: MonthlyDashb
     });
   };
 
-  // Unique categories present in habits
+  const handleEditSave = (updated: Habit) => {
+    const newHabits = habits.map(h => h.id === updated.id ? updated : h);
+    setHabits(newHabits);
+    onEditHabit?.(updated);
+    onHabitsChange?.(newHabits);
+  };
+
+  const handleDragOver = (e: React.DragEvent, targetIdx: number) => {
+    e.preventDefault();
+    if (dragIndex === null || dragIndex === targetIdx) return;
+    const reordered = [...habits];
+    const [item] = reordered.splice(dragIndex, 1);
+    reordered.splice(targetIdx, 0, item);
+    setDragIndex(targetIdx);
+    setHabits(reordered);
+    onHabitsChange?.(reordered);
+  };
+
   const usedCategories = Array.from(new Set(habits.map(h => h.category).filter(Boolean))) as HabitCategory[];
   const showCategoryFilter = usedCategories.length > 1;
 
@@ -98,7 +139,6 @@ export const MonthlyDashboard = ({ initialHabits, onHabitsChange }: MonthlyDashb
   return (
     <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
 
-      {/* Celebration Banner */}
       {showCelebration && (
         <div style={{
           position: 'fixed', top: 0, left: '50%', transform: 'translateX(-50%)',
@@ -114,6 +154,19 @@ export const MonthlyDashboard = ({ initialHabits, onHabitsChange }: MonthlyDashb
           <span style={{ fontSize: '1.4rem' }}>🎉</span>
         </div>
       )}
+
+      {/* Daily Quote */}
+      <div style={{
+        background: 'linear-gradient(135deg, rgba(14,165,233,0.1), rgba(139,92,246,0.1))',
+        border: '1px solid rgba(14,165,233,0.2)',
+        borderRadius: 16, padding: '14px 18px',
+        display: 'flex', alignItems: 'flex-start', gap: 10,
+      }}>
+        <span style={{ fontSize: '1.1rem', flexShrink: 0 }}>💡</span>
+        <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)', lineHeight: 1.5, fontStyle: 'italic' }}>
+          {todayQuote}
+        </p>
+      </div>
 
       <section>
         <h3 className="mobile-card-title">Momentum</h3>
@@ -135,7 +188,7 @@ export const MonthlyDashboard = ({ initialHabits, onHabitsChange }: MonthlyDashb
               <XAxis dataKey="day" axisLine={false} tickLine={false} stroke="var(--text-dim)" fontSize={12} />
               <Tooltip
                 contentStyle={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: '10px' }}
-                itemStyle={{ color: 'white' }}
+                itemStyle={{ color: 'var(--text-main)' }}
               />
             </LineChart>
           </ResponsiveContainer>
@@ -153,7 +206,6 @@ export const MonthlyDashboard = ({ initialHabits, onHabitsChange }: MonthlyDashb
           </button>
         </div>
 
-        {/* Category filter */}
         {showCategoryFilter && !showHistory && (
           <div style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 12, marginBottom: 4 }}>
             <button
@@ -190,8 +242,26 @@ export const MonthlyDashboard = ({ initialHabits, onHabitsChange }: MonthlyDashb
           <div className="habit-list">
             {filteredHabits.map(habit => {
               const checked = habit.completedDays.includes(today);
+              const weeklyCount = habit.completedDays.filter(d => last7Days.includes(d)).length;
+              const weeklyTarget = habit.targetDaysPerWeek ?? 7;
+              const habitIdx = habits.indexOf(habit);
               return (
-                <div key={habit.id} className="habit-list-item" style={{ cursor: 'default' }}>
+                <div
+                  key={habit.id}
+                  className="habit-list-item"
+                  style={{
+                    cursor: 'default',
+                    opacity: dragIndex !== null && dragIndex !== habitIdx ? 0.6 : 1,
+                    transition: 'opacity 0.15s ease',
+                  }}
+                  draggable={activeCategory === 'tümü'}
+                  onDragStart={() => setDragIndex(habitIdx)}
+                  onDragOver={(e) => handleDragOver(e, habitIdx)}
+                  onDragEnd={() => setDragIndex(null)}
+                >
+                  {activeCategory === 'tümü' && (
+                    <GripVertical size={14} color="var(--text-dim)" style={{ cursor: 'grab', flexShrink: 0 }} />
+                  )}
                   <div
                     className={`habit-checkbox ${checked ? 'checked' : ''}`}
                     style={checked ? { background: habit.color, cursor: 'pointer' } : { cursor: 'pointer' }}
@@ -203,7 +273,7 @@ export const MonthlyDashboard = ({ initialHabits, onHabitsChange }: MonthlyDashb
                     <div className="habit-name">{habit.name}</div>
                     <div className="habit-streak-badge">
                       <Flame size={10} style={{ display: 'inline', marginRight: '4px' }} />
-                      {habit.streak} Günlük Seri
+                      {weeklyCount}/{weeklyTarget} Bu Hafta
                       {habit.category && (
                         <span style={{ marginLeft: 6, opacity: 0.7 }}>· {CATEGORY_LABELS[habit.category]}</span>
                       )}
@@ -242,11 +312,7 @@ export const MonthlyDashboard = ({ initialHabits, onHabitsChange }: MonthlyDashb
                         <td key={i}>
                           <div
                             className={`day-cell ${isCompleted ? 'completed' : ''}`}
-                            style={{
-                              width: '20px',
-                              height: '20px',
-                              backgroundColor: isCompleted ? habit.color : 'rgba(255,255,255,0.03)'
-                            }}
+                            style={{ width: '20px', height: '20px', backgroundColor: isCompleted ? habit.color : 'rgba(255,255,255,0.03)' }}
                             onClick={() => toggleDay(habit.id, day)}
                           >
                             {isCompleted && <Check size={8} />}
@@ -263,7 +329,26 @@ export const MonthlyDashboard = ({ initialHabits, onHabitsChange }: MonthlyDashb
       </section>
 
       {selectedHabit && (
-        <HabitDetailModal habit={selectedHabit} onClose={() => setSelectedHabit(null)} />
+        <HabitDetailModal
+          habit={selectedHabit}
+          onClose={() => setSelectedHabit(null)}
+          onEdit={() => {
+            setEditingHabit(selectedHabit);
+            setSelectedHabit(null);
+          }}
+          onDelete={onDeleteHabit ? () => {
+            onDeleteHabit(selectedHabit.id);
+            setSelectedHabit(null);
+          } : undefined}
+        />
+      )}
+
+      {editingHabit && (
+        <EditHabitModal
+          habit={editingHabit}
+          onClose={() => setEditingHabit(null)}
+          onSave={handleEditSave}
+        />
       )}
     </div>
   );

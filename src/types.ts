@@ -17,6 +17,8 @@ export interface Habit {
   color: string;
   streak: number;
   category?: HabitCategory;
+  reminderTime?: string;      // e.g. "20:00"
+  targetDaysPerWeek?: number; // 1-7, default 7
 }
 
 export interface MonthlyStats {

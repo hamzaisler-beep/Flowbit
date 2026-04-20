@@ -1,6 +1,7 @@
 import { BarChart, Bar, XAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import { CircularProgress } from './CircularProgress';
-import { TrendingUp, Target } from 'lucide-react';
+import { TrendingUp, Target, Share2 } from 'lucide-react';
+import { useState } from 'react';
 import type { Habit } from '../types';
 
 interface YearlyDashboardProps {
@@ -8,6 +9,7 @@ interface YearlyDashboardProps {
 }
 
 export const YearlyDashboard = ({ habits }: YearlyDashboardProps) => {
+  const [copied, setCopied] = useState(false);
   const now = new Date();
   const currentYear = now.getFullYear();
   const currentMonthIndex = now.getMonth(); // 0-11
@@ -38,10 +40,34 @@ export const YearlyDashboard = ({ habits }: YearlyDashboardProps) => {
 
   const currentMonthName = now.toLocaleString('tr-TR', { month: 'long' });
 
+  const handleShare = async () => {
+    const text = `Flowbit ${currentYear} İstatistiklerim 🌱\n📊 Genel oran: %${overallRate}\n✅ Toplam: ${totalCompleted} gün tamamlandı\n🎯 Yıllık hedef: ${totalCompleted}/${yearlyTarget}\n📅 Yılın ${daysPassed}. gününde ${habits.length} aktif alışkanlık`;
+    if (navigator.share) {
+      await navigator.share({ title: 'Flowbit İstatistiklerim', text }).catch(() => {});
+    } else {
+      await navigator.clipboard.writeText(text).catch(() => {});
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
+  };
+
   return (
     <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
       <section>
-        <h3 className="mobile-card-title">Yıllık Özet ({currentYear})</h3>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+          <h3 className="mobile-card-title" style={{ margin: 0 }}>Yıllık Özet ({currentYear})</h3>
+          <button
+            onClick={handleShare}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 6,
+              background: 'rgba(14,165,233,0.12)', border: '1px solid rgba(14,165,233,0.3)',
+              borderRadius: 10, padding: '7px 12px', color: 'var(--accent-blue)',
+              fontWeight: 600, fontSize: '0.8rem', cursor: 'pointer',
+            }}
+          >
+            <Share2 size={14} /> {copied ? 'Kopyalandı!' : 'Paylaş'}
+          </button>
+        </div>
         <div className="momentum-grid">
           <CircularProgress value={overallRate} label="Genel Oran" color="var(--accent-blue)" size={80} />
           <CircularProgress value={yearlyProgress} label="Yıllık" color="var(--accent-green)" size={80} />

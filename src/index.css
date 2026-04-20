@@ -94,3 +94,13 @@ body {
 .animate-fade-in {
   animation: fadeIn 0.5s ease-out forwards;
 }
+
+body.light-theme {
+  --bg-dark: #eef2f7;
+  --surface: #ffffff;
+  --surface-alt: #f4f6fb;
+  --border: rgba(0, 0, 0, 0.1);
+  --text-main: #1a1a2e;
+  --text-muted: #4a5568;
+  --text-dim: #8896a7;
+}

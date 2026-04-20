@@ -11,27 +11,24 @@ const COLORS = [
 const CATEGORIES = Object.keys(CATEGORY_LABELS) as HabitCategory[];
 
 interface Props {
+  habit: Habit;
   onClose: () => void;
-  onAdd: (habit: Habit) => void;
+  onSave: (updated: Habit) => void;
 }
 
-export const AddHabitModal = ({ onClose, onAdd }: Props) => {
-  const [name, setName] = useState('');
-  const [color, setColor] = useState(COLORS[0]);
-  const [target] = useState(20);
-  const [category, setCategory] = useState<HabitCategory>('diğer');
-  const [targetDaysPerWeek, setTargetDaysPerWeek] = useState(7);
-  const [reminderTime, setReminderTime] = useState('');
+export const EditHabitModal = ({ habit, onClose, onSave }: Props) => {
+  const [name, setName] = useState(habit.name);
+  const [color, setColor] = useState(habit.color);
+  const [category, setCategory] = useState<HabitCategory>(habit.category ?? 'diğer');
+  const [targetDaysPerWeek, setTargetDaysPerWeek] = useState(habit.targetDaysPerWeek ?? 7);
+  const [reminderTime, setReminderTime] = useState(habit.reminderTime ?? '');
 
   const handleSubmit = () => {
     if (!name.trim()) return;
-    onAdd({
-      id: Date.now().toString(),
+    onSave({
+      ...habit,
       name: name.trim(),
       color,
-      target,
-      completedDays: [],
-      streak: 0,
       category,
       targetDaysPerWeek,
       reminderTime: reminderTime || undefined,
@@ -42,8 +39,8 @@ export const AddHabitModal = ({ onClose, onAdd }: Props) => {
   return (
     <div
       style={{
-        position: 'fixed', inset: 0, zIndex: 2000,
-        background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(8px)',
+        position: 'fixed', inset: 0, zIndex: 4000,
+        background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(8px)',
         display: 'flex', alignItems: 'flex-end', justifyContent: 'center',
       }}
       onClick={onClose}
@@ -56,11 +53,13 @@ export const AddHabitModal = ({ onClose, onAdd }: Props) => {
           padding: '28px 24px 40px',
           border: '1px solid var(--border)',
           animation: 'slideUp 0.3s ease',
+          maxHeight: '90vh',
+          overflowY: 'auto',
         }}
         onClick={e => e.stopPropagation()}
       >
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
-          <h3 style={{ fontSize: '1.2rem', fontWeight: 800 }}>Yeni Alışkanlık</h3>
+          <h3 style={{ fontSize: '1.2rem', fontWeight: 800 }}>Alışkanlığı Düzenle</h3>
           <button
             onClick={onClose}
             style={{ background: 'var(--surface-alt)', border: '1px solid var(--border)', borderRadius: 10, padding: 8, color: 'var(--text-muted)', cursor: 'pointer' }}
@@ -77,10 +76,9 @@ export const AddHabitModal = ({ onClose, onAdd }: Props) => {
               value={name}
               onChange={e => setName(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && handleSubmit()}
-              placeholder="Örn: Her gün yürüyüş yap"
               style={{
                 background: 'var(--surface-alt)', border: '1px solid var(--border)',
-                borderRadius: 12, padding: '14px 16px', color: 'white',
+                borderRadius: 12, padding: '14px 16px', color: 'var(--text-main)',
                 fontSize: '1rem', fontFamily: 'inherit', outline: 'none',
               }}
             />
@@ -98,7 +96,7 @@ export const AddHabitModal = ({ onClose, onAdd }: Props) => {
                     border: category === cat ? `2px solid ${color}` : '2px solid var(--border)',
                     background: category === cat ? `${color}22` : 'var(--surface-alt)',
                     color: category === cat ? color : 'var(--text-dim)',
-                    cursor: 'pointer', transition: 'all 0.2s ease',
+                    cursor: 'pointer',
                   }}
                 >
                   {CATEGORY_LABELS[cat]}
@@ -178,7 +176,7 @@ export const AddHabitModal = ({ onClose, onAdd }: Props) => {
               transition: 'all 0.3s ease',
             }}
           >
-            Ekle
+            Kaydet
           </button>
         </div>
       </div>

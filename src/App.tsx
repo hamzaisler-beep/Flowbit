@@ -26,6 +26,17 @@ function App() {
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [userName, setUserName] = useState('Kullanıcı');
   const [userId, setUserId] = useState<string | undefined>(undefined);
+  const [isDarkTheme, setIsDarkTheme] = useState(() => localStorage.getItem('flowbit_theme') !== 'light');
+
+  useEffect(() => {
+    if (isDarkTheme) {
+      document.body.classList.remove('light-theme');
+      localStorage.setItem('flowbit_theme', 'dark');
+    } else {
+      document.body.classList.add('light-theme');
+      localStorage.setItem('flowbit_theme', 'light');
+    }
+  }, [isDarkTheme]);
   const currentUid = useRef<string | null>(null);
   const habitsLoaded = useRef(false);
 
@@ -72,13 +83,12 @@ function App() {
     if (!notifEnabled || !('Notification' in window) || Notification.permission !== 'granted') return;
 
     const now = new Date();
-    const todayStr = now.toISOString().split('T')[0];
-    const alreadyShown = localStorage.getItem('flowbit_notif_shown') === todayStr;
-    if (alreadyShown) return;
-
     const hours = now.getHours();
-    if (hours >= 20) {
-      const today = now.getDate();
+    const todayStr = now.toISOString().split('T')[0];
+    const today = now.getDate();
+
+    // Günlük hatırlatma
+    if (hours >= 20 && localStorage.getItem('flowbit_notif_shown') !== todayStr) {
       const remaining = userHabits.filter(h => !h.completedDays.includes(today)).length;
       if (remaining > 0) {
         new Notification('Flowbit 🌱', {
@@ -86,6 +96,22 @@ function App() {
           icon: '/favicon.svg',
         });
         localStorage.setItem('flowbit_notif_shown', todayStr);
+      }
+    }
+
+    // Haftalık özet (Pazar, saat 20:00+)
+    if (now.getDay() === 0 && hours >= 20) {
+      const weekKey = `${now.getFullYear()}-W${Math.ceil(today / 7)}`;
+      if (localStorage.getItem('flowbit_weekly_shown') !== weekKey) {
+        const last7 = Array.from({ length: 7 }, (_, i) => today - (6 - i)).filter(d => d > 0);
+        const weeklyTotal = userHabits.reduce((acc, h) => acc + h.completedDays.filter(d => last7.includes(d)).length, 0);
+        const weeklyMax = userHabits.length * last7.length;
+        const pct = weeklyMax > 0 ? Math.round(weeklyTotal / weeklyMax * 100) : 0;
+        new Notification('Flowbit Haftalık Özet 📊', {
+          body: `Bu hafta %${pct} başarı! ${weeklyTotal}/${weeklyMax} hedef tamamlandı.`,
+          icon: '/favicon.svg',
+        });
+        localStorage.setItem('flowbit_weekly_shown', weekKey);
       }
     }
   }, [isAuthenticated, userHabits]);
@@ -117,6 +143,18 @@ function App() {
     const updated = [...userHabits, habit];
     setUserHabits(updated);
     saveHabits(updated);
+  };
+
+  const handleDeleteHabit = (id: string) => {
+    const updated = userHabits.filter(h => h.id !== id);
+    setUserHabits(updated);
+    saveHabits(updated);
+  };
+
+  const handleEditHabit = (updated: Habit) => {
+    const newHabits = userHabits.map(h => h.id === updated.id ? updated : h);
+    setUserHabits(newHabits);
+    saveHabits(newHabits);
   };
 
   const handleLogout = async () => {
@@ -186,6 +224,8 @@ function App() {
             <MonthlyDashboard
               initialHabits={userHabits}
               onHabitsChange={handleHabitsChange}
+              onDeleteHabit={handleDeleteHabit}
+              onEditHabit={handleEditHabit}
             />
           )}
           {activeTab === 'yearly' && <YearlyDashboard habits={userHabits} />}
@@ -203,6 +243,9 @@ function App() {
         <ProfileMenu
           onClose={() => setShowProfileMenu(false)}
           onLogout={handleLogout}
+          isDarkTheme={isDarkTheme}
+          onThemeToggle={() => setIsDarkTheme(d => !d)}
+          habits={userHabits}
         />
       )}
 
