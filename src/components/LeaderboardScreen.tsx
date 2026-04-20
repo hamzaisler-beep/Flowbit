@@ -9,15 +9,7 @@ interface LeaderboardUser {
   isCurrentUser?: boolean;
 }
 
-const MOCK_USERS: Omit<LeaderboardUser, 'isCurrentUser'>[] = [
-  { id: 'm1', name: 'Ayşe K.', avatar: '👩', score: 1240, streak: 18 },
-  { id: 'm2', name: 'Mehmet A.', avatar: '👨', score: 1105, streak: 14 },
-  { id: 'm3', name: 'Zeynep T.', avatar: '🧑', score: 980, streak: 11 },
-  { id: 'm4', name: 'Can Y.', avatar: '👦', score: 870, streak: 9 },
-  { id: 'm5', name: 'Elif S.', avatar: '👧', score: 720, streak: 7 },
-  { id: 'm6', name: 'Burak D.', avatar: '🧔', score: 610, streak: 5 },
-  { id: 'm7', name: 'Selin M.', avatar: '👩‍🦱', score: 430, streak: 3 },
-];
+const MOCK_USERS: Omit<LeaderboardUser, 'isCurrentUser'>[] = [];
 
 const RANK_COLORS = ['#f59e0b', '#94a3b8', '#b45309'];
 const RANK_LABELS = ['🥇', '🥈', '🥉'];
