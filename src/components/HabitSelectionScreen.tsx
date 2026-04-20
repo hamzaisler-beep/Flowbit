@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Check, Flame, Plus } from 'lucide-react';
+import { Check, Plus } from 'lucide-react';
 import type { Habit } from '../types';
 
 interface HabitSelectionScreenProps {

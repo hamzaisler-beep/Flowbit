@@ -1,13 +1,8 @@
 import type { Habit } from '../types';
 import { CircularProgress } from './CircularProgress';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { LineChart, Line, XAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { Check, Flame, ChevronRight } from 'lucide-react';
 import { useState, useEffect } from 'react';
-
-const chartData = Array.from({ length: 7 }, (_, i) => ({
-  day: ['Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt', 'Paz'][i],
-  progress: Math.floor(Math.random() * 40) + 60
-}));
 
 interface MonthlyDashboardProps {
   initialHabits: Habit[];

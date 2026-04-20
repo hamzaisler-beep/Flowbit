@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Mail, Lock, User, ArrowRight, LogIn } from 'lucide-react';
+import { useState } from 'react';
+import { Mail, Lock, ArrowRight, LogIn } from 'lucide-react';
 
 interface LoginScreenProps {
   onLogin: () => void;
@@ -9,11 +9,6 @@ interface LoginScreenProps {
 export const LoginScreen = ({ onLogin, onNavigateToRegister }: LoginScreenProps) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    onLogin();
-  };
 
   return (
     <div className="auth-container animate-fade-in">

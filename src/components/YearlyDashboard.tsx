@@ -1,6 +1,6 @@
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
+import { BarChart, Bar, XAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import { CircularProgress } from './CircularProgress';
-import { TrendingUp, Target, Award } from 'lucide-react';
+import { TrendingUp, Target } from 'lucide-react';
 import type { Habit } from '../types';
 
 interface YearlyDashboardProps {
