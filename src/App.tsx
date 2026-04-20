@@ -25,17 +25,18 @@ function App() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [userName, setUserName] = useState('Kullanıcı');
+  const [userId, setUserId] = useState<string | undefined>(undefined);
   const currentUid = useRef<string | null>(null);
   const habitsLoaded = useRef(false);
 
-  // Firebase oturumunu dinle — sayfa yenilenince giriş durumu korunur
+  // Firebase oturumunu dinle
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (user) {
         currentUid.current = user.uid;
+        setUserId(user.uid);
         setUserName(user.displayName || user.email || 'Kullanıcı');
 
-        // Firestore'dan kullanıcı verisini yükle
         const snap = await getDoc(doc(db, 'users', user.uid));
         if (snap.exists()) {
           const data = snap.data();
@@ -53,6 +54,7 @@ function App() {
         setIsAuthenticated(true);
       } else {
         currentUid.current = null;
+        setUserId(undefined);
         habitsLoaded.current = false;
         setIsAuthenticated(false);
         setStep('intro');
@@ -63,7 +65,31 @@ function App() {
     return unsubscribe;
   }, []);
 
-  // Alışkanlıklar değişince Firestore'a kaydet
+  // Bildirim kontrolü: saat 20:00+ ve tamamlanmamış alışkanlık varsa hatırlat
+  useEffect(() => {
+    if (!isAuthenticated || userHabits.length === 0) return;
+    const notifEnabled = localStorage.getItem('flowbit_notif') === 'true';
+    if (!notifEnabled || !('Notification' in window) || Notification.permission !== 'granted') return;
+
+    const now = new Date();
+    const todayStr = now.toISOString().split('T')[0];
+    const alreadyShown = localStorage.getItem('flowbit_notif_shown') === todayStr;
+    if (alreadyShown) return;
+
+    const hours = now.getHours();
+    if (hours >= 20) {
+      const today = now.getDate();
+      const remaining = userHabits.filter(h => !h.completedDays.includes(today)).length;
+      if (remaining > 0) {
+        new Notification('Flowbit 🌱', {
+          body: `${remaining} alışkanlığın henüz tamamlanmadı. Hedeflerine devam et!`,
+          icon: '/favicon.svg',
+        });
+        localStorage.setItem('flowbit_notif_shown', todayStr);
+      }
+    }
+  }, [isAuthenticated, userHabits]);
+
   const saveHabits = async (habits: Habit[]) => {
     if (!currentUid.current || !habitsLoaded.current) return;
     const score = habits.reduce((s, h) => s + h.completedDays.length * 10 + h.streak * 5, 0);
@@ -98,7 +124,6 @@ function App() {
     setShowProfileMenu(false);
   };
 
-  // Auth kontrol edilene kadar boş ekran göster
   if (!authChecked) {
     return (
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh' }}>
@@ -164,7 +189,13 @@ function App() {
             />
           )}
           {activeTab === 'yearly' && <YearlyDashboard habits={userHabits} />}
-          {activeTab === 'leaderboard' && <LeaderboardScreen habits={userHabits} userName={userName} />}
+          {activeTab === 'leaderboard' && (
+            <LeaderboardScreen
+              habits={userHabits}
+              userName={userName}
+              currentUserId={userId}
+            />
+          )}
         </main>
       </div>
 

@@ -1,11 +1,14 @@
 import { useState } from 'react';
 import { X, Check } from 'lucide-react';
-import type { Habit } from '../types';
+import type { Habit, HabitCategory } from '../types';
+import { CATEGORY_LABELS } from '../types';
 
 const COLORS = [
   '#0ea5e9', '#10b981', '#f59e0b', '#ef4444',
   '#8b5cf6', '#ec4899', '#3b82f6', '#f97316',
 ];
+
+const CATEGORIES = Object.keys(CATEGORY_LABELS) as HabitCategory[];
 
 interface Props {
   onClose: () => void;
@@ -16,6 +19,7 @@ export const AddHabitModal = ({ onClose, onAdd }: Props) => {
   const [name, setName] = useState('');
   const [color, setColor] = useState(COLORS[0]);
   const [target, setTarget] = useState(20);
+  const [category, setCategory] = useState<HabitCategory>('diğer');
 
   const handleSubmit = () => {
     if (!name.trim()) return;
@@ -26,6 +30,7 @@ export const AddHabitModal = ({ onClose, onAdd }: Props) => {
       target,
       completedDays: [],
       streak: 0,
+      category,
     });
     onClose();
   };
@@ -75,6 +80,27 @@ export const AddHabitModal = ({ onClose, onAdd }: Props) => {
                 fontSize: '1rem', fontFamily: 'inherit', outline: 'none',
               }}
             />
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <label style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-muted)' }}>Kategori</label>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+              {CATEGORIES.map(cat => (
+                <button
+                  key={cat}
+                  onClick={() => setCategory(cat)}
+                  style={{
+                    padding: '7px 12px', borderRadius: 10, fontSize: '0.8rem', fontWeight: 600,
+                    border: category === cat ? `2px solid ${color}` : '2px solid var(--border)',
+                    background: category === cat ? `${color}22` : 'var(--surface-alt)',
+                    color: category === cat ? color : 'var(--text-dim)',
+                    cursor: 'pointer', transition: 'all 0.2s ease',
+                  }}
+                >
+                  {CATEGORY_LABELS[cat]}
+                </button>
+              ))}
+            </div>
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>

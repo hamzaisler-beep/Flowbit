@@ -1,8 +1,10 @@
-import type { Habit } from '../types';
+import type { Habit, HabitCategory } from '../types';
+import { CATEGORY_LABELS } from '../types';
 import { CircularProgress } from './CircularProgress';
+import { HabitDetailModal } from './HabitDetailModal';
 import { LineChart, Line, XAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { Check, Flame, ChevronRight } from 'lucide-react';
-import { useState, useEffect } from 'react';
+import { Check, Flame, ChevronRight, Info } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
 
 interface MonthlyDashboardProps {
   initialHabits: Habit[];
@@ -12,6 +14,10 @@ interface MonthlyDashboardProps {
 export const MonthlyDashboard = ({ initialHabits, onHabitsChange }: MonthlyDashboardProps) => {
   const [habits, setHabits] = useState<Habit[]>(initialHabits);
   const [showHistory, setShowHistory] = useState(false);
+  const [activeCategory, setActiveCategory] = useState<HabitCategory | 'tümü'>('tümü');
+  const [selectedHabit, setSelectedHabit] = useState<Habit | null>(null);
+  const [showCelebration, setShowCelebration] = useState(false);
+  const celebrationShownRef = useRef(false);
 
   useEffect(() => {
     setHabits(initialHabits);
@@ -24,7 +30,6 @@ export const MonthlyDashboard = ({ initialHabits, onHabitsChange }: MonthlyDashb
   const getDayName = (dayOfMonth: number) =>
     DAY_NAMES[new Date(now.getFullYear(), now.getMonth(), dayOfMonth).getDay()];
 
-  // Calculate dynamic metrics
   const totalHabits = habits.length;
   const completedToday = habits.filter(h => h.completedDays.includes(today)).length;
   const dailyProgress = totalHabits > 0 ? Math.round((completedToday / totalHabits) * 100) : 0;
@@ -39,6 +44,18 @@ export const MonthlyDashboard = ({ initialHabits, onHabitsChange }: MonthlyDashb
   const weeklyProgress = totalHabits > 0 ? Math.round((weeklyChecks / (totalHabits * last7Days.length)) * 100) : 0;
 
   const continuity = totalHabits > 0 ? Math.min(100, Math.round(habits.reduce((acc, h) => acc + h.streak, 0) / totalHabits * 10)) : 0;
+
+  // Celebration when all habits done
+  useEffect(() => {
+    if (totalHabits > 0 && completedToday === totalHabits && !celebrationShownRef.current) {
+      celebrationShownRef.current = true;
+      setShowCelebration(true);
+      setTimeout(() => setShowCelebration(false), 4000);
+    }
+    if (completedToday < totalHabits) {
+      celebrationShownRef.current = false;
+    }
+  }, [completedToday, totalHabits]);
 
   const chartData = Array.from({ length: 7 }, (_, i) => {
     const day = today - (6 - i);
@@ -70,8 +87,34 @@ export const MonthlyDashboard = ({ initialHabits, onHabitsChange }: MonthlyDashb
     });
   };
 
+  // Unique categories present in habits
+  const usedCategories = Array.from(new Set(habits.map(h => h.category).filter(Boolean))) as HabitCategory[];
+  const showCategoryFilter = usedCategories.length > 1;
+
+  const filteredHabits = activeCategory === 'tümü'
+    ? habits
+    : habits.filter(h => h.category === activeCategory);
+
   return (
     <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+
+      {/* Celebration Banner */}
+      {showCelebration && (
+        <div style={{
+          position: 'fixed', top: 0, left: '50%', transform: 'translateX(-50%)',
+          width: '100%', maxWidth: 600, zIndex: 9999,
+          background: 'linear-gradient(135deg, #10b981, #059669)',
+          padding: '16px 24px',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
+          animation: 'slideDown 0.4s ease',
+          boxShadow: '0 8px 30px rgba(16,185,129,0.5)',
+        }}>
+          <span style={{ fontSize: '1.4rem' }}>🎉</span>
+          <span style={{ fontWeight: 700, fontSize: '0.95rem' }}>Harika! Bugün tüm hedeflerini tamamladın!</span>
+          <span style={{ fontSize: '1.4rem' }}>🎉</span>
+        </div>
+      )}
+
       <section>
         <h3 className="mobile-card-title">Momentum</h3>
         <div className="momentum-grid">
@@ -90,7 +133,7 @@ export const MonthlyDashboard = ({ initialHabits, onHabitsChange }: MonthlyDashb
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" opacity={0.5} />
               <Line type="monotone" dataKey="progress" stroke="var(--accent-green)" strokeWidth={3} dot={{ r: 4, fill: 'var(--accent-green)' }} />
               <XAxis dataKey="day" axisLine={false} tickLine={false} stroke="var(--text-dim)" fontSize={12} />
-              <Tooltip 
+              <Tooltip
                 contentStyle={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: '10px' }}
                 itemStyle={{ color: 'white' }}
               />
@@ -102,7 +145,7 @@ export const MonthlyDashboard = ({ initialHabits, onHabitsChange }: MonthlyDashb
       <section>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
           <h3 className="mobile-card-title" style={{ margin: 0 }}>Bugünkü Hedefler</h3>
-          <button 
+          <button
             onClick={() => setShowHistory(!showHistory)}
             style={{ background: 'none', border: 'none', color: 'var(--accent-blue)', fontSize: '0.8rem', display: 'flex', alignItems: 'center' }}
           >
@@ -110,22 +153,68 @@ export const MonthlyDashboard = ({ initialHabits, onHabitsChange }: MonthlyDashb
           </button>
         </div>
 
+        {/* Category filter */}
+        {showCategoryFilter && !showHistory && (
+          <div style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 12, marginBottom: 4 }}>
+            <button
+              onClick={() => setActiveCategory('tümü')}
+              style={{
+                padding: '6px 14px', borderRadius: 20, fontSize: '0.78rem', fontWeight: 600,
+                border: activeCategory === 'tümü' ? '2px solid var(--accent-blue)' : '2px solid var(--border)',
+                background: activeCategory === 'tümü' ? 'rgba(14,165,233,0.15)' : 'var(--surface-alt)',
+                color: activeCategory === 'tümü' ? 'var(--accent-blue)' : 'var(--text-dim)',
+                cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0,
+              }}
+            >
+              Tümü
+            </button>
+            {usedCategories.map(cat => (
+              <button
+                key={cat}
+                onClick={() => setActiveCategory(cat)}
+                style={{
+                  padding: '6px 14px', borderRadius: 20, fontSize: '0.78rem', fontWeight: 600,
+                  border: activeCategory === cat ? '2px solid var(--accent-blue)' : '2px solid var(--border)',
+                  background: activeCategory === cat ? 'rgba(14,165,233,0.15)' : 'var(--surface-alt)',
+                  color: activeCategory === cat ? 'var(--accent-blue)' : 'var(--text-dim)',
+                  cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0,
+                }}
+              >
+                {CATEGORY_LABELS[cat]}
+              </button>
+            ))}
+          </div>
+        )}
+
         {!showHistory ? (
           <div className="habit-list">
-            {habits.map(habit => {
+            {filteredHabits.map(habit => {
               const checked = habit.completedDays.includes(today);
               return (
-                <div key={habit.id} className="habit-list-item" onClick={() => toggleDay(habit.id, today)}>
-                  <div className={`habit-checkbox ${checked ? 'checked' : ''}`} style={checked ? { background: habit.color } : {}}>
+                <div key={habit.id} className="habit-list-item" style={{ cursor: 'default' }}>
+                  <div
+                    className={`habit-checkbox ${checked ? 'checked' : ''}`}
+                    style={checked ? { background: habit.color, cursor: 'pointer' } : { cursor: 'pointer' }}
+                    onClick={() => toggleDay(habit.id, today)}
+                  >
                     {checked && <Check size={18} color="white" />}
                   </div>
-                  <div className="habit-info">
+                  <div className="habit-info" style={{ flex: 1 }} onClick={() => setSelectedHabit(habit)}>
                     <div className="habit-name">{habit.name}</div>
                     <div className="habit-streak-badge">
                       <Flame size={10} style={{ display: 'inline', marginRight: '4px' }} />
                       {habit.streak} Günlük Seri
+                      {habit.category && (
+                        <span style={{ marginLeft: 6, opacity: 0.7 }}>· {CATEGORY_LABELS[habit.category]}</span>
+                      )}
                     </div>
                   </div>
+                  <button
+                    onClick={() => setSelectedHabit(habit)}
+                    style={{ background: 'none', border: 'none', color: 'var(--text-dim)', cursor: 'pointer', padding: 4 }}
+                  >
+                    <Info size={16} />
+                  </button>
                 </div>
               );
             })}
@@ -151,12 +240,12 @@ export const MonthlyDashboard = ({ initialHabits, onHabitsChange }: MonthlyDashb
                       const isCompleted = habit.completedDays.includes(day);
                       return (
                         <td key={i}>
-                          <div 
+                          <div
                             className={`day-cell ${isCompleted ? 'completed' : ''}`}
-                            style={{ 
-                              width: '20px', 
-                              height: '20px', 
-                              backgroundColor: isCompleted ? habit.color : 'rgba(255,255,255,0.03)' 
+                            style={{
+                              width: '20px',
+                              height: '20px',
+                              backgroundColor: isCompleted ? habit.color : 'rgba(255,255,255,0.03)'
                             }}
                             onClick={() => toggleDay(habit.id, day)}
                           >
@@ -172,6 +261,10 @@ export const MonthlyDashboard = ({ initialHabits, onHabitsChange }: MonthlyDashb
           </div>
         )}
       </section>
+
+      {selectedHabit && (
+        <HabitDetailModal habit={selectedHabit} onClose={() => setSelectedHabit(null)} />
+      )}
     </div>
   );
 };

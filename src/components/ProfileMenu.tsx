@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { X, Camera, User, Bell, Shield, LogOut, ChevronRight } from 'lucide-react';
 
 interface Props {
@@ -11,7 +11,15 @@ export const ProfileMenu = ({ onClose, onLogout }: Props) => {
   const [name, setName] = useState('Kullanıcı');
   const [editingName, setEditingName] = useState(false);
   const [tempName, setTempName] = useState(name);
+  const [notifEnabled, setNotifEnabled] = useState(() => localStorage.getItem('flowbit_notif') === 'true');
+  const [notifPermission, setNotifPermission] = useState<NotificationPermission>('default');
   const fileRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if ('Notification' in window) {
+      setNotifPermission(Notification.permission);
+    }
+  }, []);
 
   const handlePhoto = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -25,6 +33,28 @@ export const ProfileMenu = ({ onClose, onLogout }: Props) => {
     if (tempName.trim()) setName(tempName.trim());
     setEditingName(false);
   };
+
+  const toggleNotifications = async () => {
+    if (!('Notification' in window)) return;
+
+    if (!notifEnabled) {
+      const permission = await Notification.requestPermission();
+      setNotifPermission(permission);
+      if (permission === 'granted') {
+        setNotifEnabled(true);
+        localStorage.setItem('flowbit_notif', 'true');
+        new Notification('Flowbit 🌱', {
+          body: 'Bildirimler açıldı! Her gün saat 20:00\'de hatırlatacağım.',
+          icon: '/favicon.svg',
+        });
+      }
+    } else {
+      setNotifEnabled(false);
+      localStorage.setItem('flowbit_notif', 'false');
+    }
+  };
+
+  const notifBlocked = notifPermission === 'denied';
 
   return (
     <div
@@ -116,23 +146,53 @@ export const ProfileMenu = ({ onClose, onLogout }: Props) => {
 
         {/* Menu Items */}
         <div style={{ borderTop: '1px solid var(--border)' }}>
-          {[
-            { icon: <Bell size={18} />, label: 'Bildirimler', color: 'var(--accent-yellow)' },
-            { icon: <Shield size={18} />, label: 'Gizlilik & Güvenlik', color: 'var(--accent-purple)' },
-          ].map(item => (
-            <button key={item.label} style={{
+          {/* Notifications toggle */}
+          <button
+            onClick={notifBlocked ? undefined : toggleNotifications}
+            style={{
               width: '100%', display: 'flex', alignItems: 'center', gap: 14,
               padding: '16px 20px', background: 'none', border: 'none',
-              borderBottom: '1px solid var(--border)', cursor: 'pointer',
+              borderBottom: '1px solid var(--border)',
+              cursor: notifBlocked ? 'not-allowed' : 'pointer',
               color: 'var(--text-main)', textAlign: 'left',
+              opacity: notifBlocked ? 0.5 : 1,
+            }}
+          >
+            <span style={{ width: 36, height: 36, borderRadius: 10, background: 'var(--surface-alt)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--accent-yellow)' }}>
+              <Bell size={18} />
+            </span>
+            <span style={{ flex: 1, fontWeight: 600, fontSize: '0.95rem' }}>
+              Bildirimler
+              {notifBlocked && <span style={{ marginLeft: 6, fontSize: '0.7rem', color: 'var(--text-dim)' }}>(tarayıcıda engellendi)</span>}
+            </span>
+            <div style={{
+              width: 44, height: 24, borderRadius: 12,
+              background: notifEnabled ? 'var(--accent-green)' : 'var(--surface-alt)',
+              border: '1px solid var(--border)',
+              position: 'relative', transition: 'background 0.2s ease',
             }}>
-              <span style={{ width: 36, height: 36, borderRadius: 10, background: 'var(--surface-alt)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: item.color }}>
-                {item.icon}
-              </span>
-              <span style={{ flex: 1, fontWeight: 600, fontSize: '0.95rem' }}>{item.label}</span>
-              <ChevronRight size={16} color="var(--text-dim)" />
-            </button>
-          ))}
+              <div style={{
+                width: 18, height: 18, borderRadius: '50%', background: 'white',
+                position: 'absolute', top: 2,
+                left: notifEnabled ? 22 : 3,
+                transition: 'left 0.2s ease',
+                boxShadow: '0 1px 3px rgba(0,0,0,0.3)',
+              }} />
+            </div>
+          </button>
+
+          <button style={{
+            width: '100%', display: 'flex', alignItems: 'center', gap: 14,
+            padding: '16px 20px', background: 'none', border: 'none',
+            borderBottom: '1px solid var(--border)', cursor: 'pointer',
+            color: 'var(--text-main)', textAlign: 'left',
+          }}>
+            <span style={{ width: 36, height: 36, borderRadius: 10, background: 'var(--surface-alt)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--accent-purple)' }}>
+              <Shield size={18} />
+            </span>
+            <span style={{ flex: 1, fontWeight: 600, fontSize: '0.95rem' }}>Gizlilik & Güvenlik</span>
+            <ChevronRight size={16} color="var(--text-dim)" />
+          </button>
 
           <button
             onClick={onLogout}

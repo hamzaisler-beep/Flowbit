@@ -1,4 +1,7 @@
+import { useEffect, useState } from 'react';
 import type { Habit } from '../types';
+import { collection, getDocs } from 'firebase/firestore';
+import { db } from '../lib/firebase';
 
 interface LeaderboardUser {
   id: string;
@@ -9,8 +12,6 @@ interface LeaderboardUser {
   isCurrentUser?: boolean;
 }
 
-const MOCK_USERS: Omit<LeaderboardUser, 'isCurrentUser'>[] = [];
-
 const RANK_COLORS = ['#f59e0b', '#94a3b8', '#b45309'];
 const RANK_LABELS = ['🥇', '🥈', '🥉'];
 
@@ -18,29 +19,68 @@ function calcScore(habits: Habit[]): number {
   return habits.reduce((sum, h) => sum + h.completedDays.length * 10 + h.streak * 5, 0);
 }
 
+const AVATARS = ['😊', '🦁', '🐯', '🦊', '🐺', '🦅', '🌟', '🔥', '💎', '🚀'];
+
 interface Props {
   habits: Habit[];
   userName?: string;
+  currentUserId?: string;
 }
 
-export const LeaderboardScreen = ({ habits, userName = 'Sen' }: Props) => {
+export const LeaderboardScreen = ({ habits, userName = 'Sen', currentUserId }: Props) => {
+  const [firestoreUsers, setFirestoreUsers] = useState<LeaderboardUser[]>([]);
+  const [loading, setLoading] = useState(true);
+
   const userScore = calcScore(habits);
   const userStreak = habits.length > 0 ? Math.max(...habits.map(h => h.streak)) : 0;
 
+  useEffect(() => {
+    const fetchUsers = async () => {
+      try {
+        const snap = await getDocs(collection(db, 'users'));
+        const users: LeaderboardUser[] = snap.docs
+          .filter(d => d.id !== currentUserId)
+          .map((d, i) => {
+            const data = d.data();
+            return {
+              id: d.id,
+              name: data.name || data.email?.split('@')[0] || 'Kullanıcı',
+              avatar: AVATARS[i % AVATARS.length],
+              score: data.score || 0,
+              streak: data.streak || 0,
+            };
+          });
+        setFirestoreUsers(users);
+      } catch {
+        setFirestoreUsers([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchUsers();
+  }, [currentUserId]);
+
   const allUsers: LeaderboardUser[] = [
-    ...MOCK_USERS,
-    { id: 'current', name: userName, avatar: '⭐', score: userScore, streak: userStreak, isCurrentUser: true },
+    ...firestoreUsers,
+    { id: currentUserId || 'current', name: userName, avatar: '⭐', score: userScore, streak: userStreak, isCurrentUser: true },
   ].sort((a, b) => b.score - a.score);
 
   const top3 = allUsers.slice(0, 3);
   const rest = allUsers.slice(3);
   const userRank = allUsers.findIndex(u => u.isCurrentUser) + 1;
 
-  const podiumOrder = [top3[1], top3[0], top3[2]]; // 2nd, 1st, 3rd
+  const podiumOrder = [top3[1], top3[0], top3[2]];
+
+  if (loading) {
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 300 }}>
+        <span style={{ color: 'var(--text-dim)' }}>Yükleniyor...</span>
+      </div>
+    );
+  }
 
   return (
     <div style={{ paddingBottom: 100 }}>
-      {/* Header */}
       <div style={{ textAlign: 'center', padding: '8px 0 28px' }}>
         <h2 style={{ fontSize: '1.5rem', fontWeight: 800, letterSpacing: '-0.5px' }}>Haftalık Sıralama</h2>
         <p style={{ color: 'var(--text-dim)', fontSize: '0.9rem', marginTop: 4 }}>
@@ -53,7 +93,7 @@ export const LeaderboardScreen = ({ habits, userName = 'Sen' }: Props) => {
         {podiumOrder.map((user, i) => {
           if (!user) return null;
           const rank = allUsers.indexOf(user) + 1;
-          const heights = [100, 130, 85]; // 2nd, 1st, 3rd
+          const heights = [100, 130, 85];
           const h = heights[i];
           return (
             <div key={user.id} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, flex: 1 }}>
@@ -100,10 +140,12 @@ export const LeaderboardScreen = ({ habits, userName = 'Sen' }: Props) => {
               <div style={{ fontSize: '0.75rem', color: 'var(--text-dim)' }}>{userScore} puan · {userStreak} gün seri</div>
             </div>
           </div>
-          <div style={{ fontSize: '0.8rem', color: 'var(--accent-blue)', fontWeight: 700 }}>
-            +{allUsers[userRank - 2]?.score - userScore} puan<br />
-            <span style={{ color: 'var(--text-dim)', fontWeight: 500 }}>üste geç</span>
-          </div>
+          {allUsers[userRank - 2] && (
+            <div style={{ fontSize: '0.8rem', color: 'var(--accent-blue)', fontWeight: 700 }}>
+              +{allUsers[userRank - 2].score - userScore} puan<br />
+              <span style={{ color: 'var(--text-dim)', fontWeight: 500 }}>üste geç</span>
+            </div>
+          )}
         </div>
       )}
 
@@ -138,7 +180,6 @@ export const LeaderboardScreen = ({ habits, userName = 'Sen' }: Props) => {
         })}
       </div>
 
-      {/* Score info */}
       <div style={{ marginTop: 24, padding: '14px 16px', background: 'var(--surface)', borderRadius: 14, border: '1px solid var(--border)' }}>
         <p style={{ fontSize: '0.8rem', color: 'var(--text-dim)', textAlign: 'center', lineHeight: 1.6 }}>
           Puan hesaplama: her tamamlanan gün <strong style={{ color: 'var(--text-muted)' }}>×10</strong> · her seri günü <strong style={{ color: 'var(--text-muted)' }}>×5</strong>

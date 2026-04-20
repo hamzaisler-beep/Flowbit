@@ -1,3 +1,14 @@
+export type HabitCategory = 'sağlık' | 'zihinsel' | 'üretkenlik' | 'sosyal' | 'eğitim' | 'diğer';
+
+export const CATEGORY_LABELS: Record<HabitCategory, string> = {
+  'sağlık': '💪 Sağlık',
+  'zihinsel': '🧠 Zihinsel',
+  'üretkenlik': '⚡ Üretkenlik',
+  'sosyal': '🤝 Sosyal',
+  'eğitim': '📚 Eğitim',
+  'diğer': '🎯 Diğer',
+};
+
 export interface Habit {
   id: string;
   name: string;
@@ -5,6 +16,7 @@ export interface Habit {
   completedDays: number[]; // Array of day numbers (1-31)
   color: string;
   streak: number;
+  category?: HabitCategory;
 }
 
 export interface MonthlyStats {
