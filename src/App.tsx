@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import './App.css';
 import { MonthlyDashboard } from './components/MonthlyDashboard';
 import { YearlyDashboard } from './components/YearlyDashboard';
@@ -11,9 +11,13 @@ import type { Habit } from './types';
 import { AddHabitModal } from './components/AddHabitModal';
 import { ProfileMenu } from './components/ProfileMenu';
 import { LeaderboardScreen } from './components/LeaderboardScreen';
+import { auth, db } from './lib/firebase';
+import { onAuthStateChanged, signOut } from 'firebase/auth';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
 
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [authChecked, setAuthChecked] = useState(false);
   const [authView, setAuthView] = useState<'login' | 'register'>('login');
   const [step, setStep] = useState<'intro' | 'habits' | 'dashboard'>('intro');
   const [userHabits, setUserHabits] = useState<Habit[]>([]);
@@ -21,16 +25,87 @@ function App() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [userName, setUserName] = useState('Kullanıcı');
+  const currentUid = useRef<string | null>(null);
+  const habitsLoaded = useRef(false);
+
+  // Firebase oturumunu dinle — sayfa yenilenince giriş durumu korunur
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      if (user) {
+        currentUid.current = user.uid;
+        setUserName(user.displayName || user.email || 'Kullanıcı');
+
+        // Firestore'dan kullanıcı verisini yükle
+        const snap = await getDoc(doc(db, 'users', user.uid));
+        if (snap.exists()) {
+          const data = snap.data();
+          if (data.habits && data.habits.length > 0) {
+            setUserHabits(data.habits);
+            setStep('dashboard');
+          } else {
+            setStep('intro');
+          }
+        } else {
+          setStep('intro');
+        }
+
+        habitsLoaded.current = true;
+        setIsAuthenticated(true);
+      } else {
+        currentUid.current = null;
+        habitsLoaded.current = false;
+        setIsAuthenticated(false);
+        setStep('intro');
+        setUserHabits([]);
+      }
+      setAuthChecked(true);
+    });
+    return unsubscribe;
+  }, []);
+
+  // Alışkanlıklar değişince Firestore'a kaydet
+  const saveHabits = async (habits: Habit[]) => {
+    if (!currentUid.current || !habitsLoaded.current) return;
+    const score = habits.reduce((s, h) => s + h.completedDays.length * 10 + h.streak * 5, 0);
+    const maxStreak = habits.length > 0 ? Math.max(...habits.map(h => h.streak)) : 0;
+    await setDoc(doc(db, 'users', currentUid.current), { habits, score, streak: maxStreak }, { merge: true });
+  };
 
   const handleLogin = (_uid: string, name: string) => {
     setUserName(name);
-    setIsAuthenticated(true);
   };
 
-  const handleHabitSelection = (selected: Habit[]) => {
+  const handleHabitSelection = async (selected: Habit[]) => {
+    habitsLoaded.current = true;
     setUserHabits(selected);
     setStep('dashboard');
+    await saveHabits(selected);
   };
+
+  const handleHabitsChange = (updated: Habit[]) => {
+    setUserHabits(updated);
+    saveHabits(updated);
+  };
+
+  const handleAddHabit = (habit: Habit) => {
+    const updated = [...userHabits, habit];
+    setUserHabits(updated);
+    saveHabits(updated);
+  };
+
+  const handleLogout = async () => {
+    await signOut(auth);
+    setShowProfileMenu(false);
+  };
+
+  // Auth kontrol edilene kadar boş ekran göster
+  if (!authChecked) {
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh' }}>
+        <div style={{ color: 'var(--text-dim)', fontSize: '1rem' }}>Yükleniyor...</div>
+      </div>
+    );
+  }
 
   if (!isAuthenticated) {
     return authView === 'login' ? (
@@ -58,7 +133,6 @@ function App() {
     <>
       <div className="app-container animate-fade-in">
         <header className="app-header" style={{ flexDirection: 'column', alignItems: 'stretch', gap: 0 }}>
-          {/* Top bar: logo + profil */}
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
               <img
@@ -76,7 +150,6 @@ function App() {
             </div>
           </div>
 
-          {/* Greeting */}
           <div style={{ marginTop: 20 }}>
             <h2 style={{ fontSize: '1.6rem', fontWeight: 800, letterSpacing: '-0.5px' }}>Hoş Geldin! 👋</h2>
             <p style={{ color: 'var(--text-dim)', fontSize: '0.95rem', fontWeight: 500 }}>Bugün neler yapacaksın?</p>
@@ -84,7 +157,12 @@ function App() {
         </header>
 
         <main style={{ paddingBottom: '100px' }}>
-          {activeTab === 'monthly' && <MonthlyDashboard initialHabits={userHabits} />}
+          {activeTab === 'monthly' && (
+            <MonthlyDashboard
+              initialHabits={userHabits}
+              onHabitsChange={handleHabitsChange}
+            />
+          )}
           {activeTab === 'yearly' && <YearlyDashboard habits={userHabits} />}
           {activeTab === 'leaderboard' && <LeaderboardScreen habits={userHabits} userName={userName} />}
         </main>
@@ -93,18 +171,17 @@ function App() {
       {showProfileMenu && (
         <ProfileMenu
           onClose={() => setShowProfileMenu(false)}
-          onLogout={() => { setShowProfileMenu(false); setIsAuthenticated(false); }}
+          onLogout={handleLogout}
         />
       )}
 
       {showAddModal && (
         <AddHabitModal
           onClose={() => setShowAddModal(false)}
-          onAdd={(habit) => setUserHabits(prev => [...prev, habit])}
+          onAdd={handleAddHabit}
         />
       )}
 
-      {/* Floating Action Button */}
       <button className="fab-button" onClick={() => setShowAddModal(true)}>
         <Plus size={32} />
       </button>
@@ -131,7 +208,7 @@ function App() {
           <Calendar size={24} />
           <span>İstatistik</span>
         </button>
-        <button className="nav-item">
+        <button className="nav-item" onClick={() => setShowProfileMenu(true)}>
           <User size={24} />
           <span>Profil</span>
         </button>

@@ -6,9 +6,10 @@ import { useState, useEffect } from 'react';
 
 interface MonthlyDashboardProps {
   initialHabits: Habit[];
+  onHabitsChange?: (habits: Habit[]) => void;
 }
 
-export const MonthlyDashboard = ({ initialHabits }: MonthlyDashboardProps) => {
+export const MonthlyDashboard = ({ initialHabits, onHabitsChange }: MonthlyDashboardProps) => {
   const [habits, setHabits] = useState<Habit[]>(initialHabits);
   const [showHistory, setShowHistory] = useState(false);
 
@@ -50,22 +51,23 @@ export const MonthlyDashboard = ({ initialHabits }: MonthlyDashboardProps) => {
   });
 
   const toggleDay = (habitId: string, day: number) => {
-    setHabits(prev => prev.map(h => {
-      if (h.id === habitId) {
-        const isCurrentlyCompleted = h.completedDays.includes(day);
-        const completedDays = isCurrentlyCompleted
-          ? h.completedDays.filter(d => d !== day)
-          : [...h.completedDays, day];
-        
-        // Simple streak calculation for the demo
-        let newStreak = h.streak;
-        if (!isCurrentlyCompleted) newStreak++;
-        else if (newStreak > 0) newStreak--;
-
-        return { ...h, completedDays, streak: newStreak };
-      }
-      return h;
-    }));
+    setHabits(prev => {
+      const updated = prev.map(h => {
+        if (h.id === habitId) {
+          const isCurrentlyCompleted = h.completedDays.includes(day);
+          const completedDays = isCurrentlyCompleted
+            ? h.completedDays.filter(d => d !== day)
+            : [...h.completedDays, day];
+          let newStreak = h.streak;
+          if (!isCurrentlyCompleted) newStreak++;
+          else if (newStreak > 0) newStreak--;
+          return { ...h, completedDays, streak: newStreak };
+        }
+        return h;
+      });
+      onHabitsChange?.(updated);
+      return updated;
+    });
   };
 
   return (
